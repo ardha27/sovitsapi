@@ -1,0 +1,8 @@
+fastapi==0.95.2
+librosa==0.9.1
+numpy==1.23.5
+pydub==0.25.1
+SoundFile==0.10.3.post1
+torch==2.0.1+cu118
+uvicorn==0.22.0
+yt_dlp==2023.3.4
