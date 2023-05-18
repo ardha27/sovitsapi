@@ -1,6 +1,6 @@
 import json
 
-def sovits_data(speaker_value, status_value):
+def sovits_data(speaker_value, duration_value, status_value):
     # Load existing data from the database.json file
     try:
         with open("database.json", "r", encoding='utf-8') as file:
@@ -18,6 +18,7 @@ def sovits_data(speaker_value, status_value):
     data = {
         "id": next_id,
         "speaker": speaker_value,
+        "duration": round(duration_value, 2),
         "status": status_value
     }
 

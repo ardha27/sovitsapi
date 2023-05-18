@@ -10,3 +10,4 @@ results
 separated
 test.py
 torch_test.py
+database.json

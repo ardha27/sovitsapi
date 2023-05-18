@@ -1,7 +1,7 @@
 import subprocess
 import json
 
-def training_sovits(speaker, epochs):
+def training_sovits(speaker, epochs, batch_size):
     try:
         command = f"svc pre-resample -i dataset_raw/{speaker} -o dataset/{speaker}"
         result = subprocess.run(command.split(), stdout=subprocess.PIPE)
@@ -17,7 +17,7 @@ def training_sovits(speaker, epochs):
 
         # Modify the value
         data['train']['epochs'] = epochs
-        data['train']['batch_size'] = 5
+        data['train']['batch_size'] = batch_size
         data['train']['keep_ckpts'] = 1
 
         # Write the updated data back to the file
@@ -38,5 +38,6 @@ def training_sovits(speaker, epochs):
 
     except Exception as e:
         print("Error:", e)
+
 
     

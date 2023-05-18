@@ -1,6 +1,8 @@
 import asyncio
 from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import FileResponse
+from queue import Queue
+import soundfile as sf
 import uvicorn
 import os
 import datetime
@@ -16,7 +18,7 @@ from utils.inference import *
 from utils.combine import *
 
 app = FastAPI()
-semaphore = asyncio.Semaphore(value=1)
+request_queue = Queue()
 
 @app.get("/")
 async def root():
@@ -41,9 +43,7 @@ def get_speaker_by_id(speaker_id: int):
         return {"message": "Speaker not found"}
     
 @app.post("/training")
-async def training(background_tasks: BackgroundTasks, audio: UploadFile = File(None), speaker: str = Form(...), youtube_link: str = Form(...), epochs: int = Form(...)):
-    async with semaphore:
-
+async def training(background_tasks: BackgroundTasks, audio: UploadFile = File(None), speaker: str = Form(...), youtube_link: str = Form(None), epochs: int = Form(...), batch_size: int = Form(...)):
         # Create the directory for the speaker if it does not exist
         speaker = speaker.replace(" ", "_")
 
@@ -65,9 +65,13 @@ async def training(background_tasks: BackgroundTasks, audio: UploadFile = File(N
 
         else:
             return {"message": "Either 'audio' or 'youtube_link' must be provided."}
+        
+        audio_file = f"{speaker_dir}/audio.wav"
+        data, sample_rate = sf.read(audio_file)
+        duration = len(data) / sample_rate
 
         # Separate the audio
-        speaker_id = sovits_data(speaker, "Separating Vocal From Noise")
+        speaker_id = sovits_data(speaker, duration, "Separating Vocal From Noise")
         background_tasks.add_task(separate_audio, "training", speaker)
 
         # Split the audio
@@ -76,10 +80,22 @@ async def training(background_tasks: BackgroundTasks, audio: UploadFile = File(N
 
         # Training
         background_tasks.add_task(update_status, speaker_id, "Training")
-        background_tasks.add_task(training_sovits, speaker, epochs)
+        background_tasks.add_task(training_sovits, speaker, epochs, batch_size)
         background_tasks.add_task(cleanup_model, speaker)
 
-        background_tasks.add_task(update_status, speaker_id, "Model Ready")
+        folder_path = f"model/{speaker}"
+
+        # Find all .pth files in the folder
+        file_paths = glob.glob(os.path.join(folder_path, "*.pth"))
+
+        # Filter the file paths to get only .pth files
+        filtered_file_paths = [path for path in file_paths if os.path.isfile(path)]
+
+        # Check if only one .pth file exists
+        if len(filtered_file_paths) == 1:
+            background_tasks.add_task(update_status, speaker_id, "Model Ready")
+        else:
+            background_tasks.add_task(update_status, speaker_id, "Error Occurred during Training")
 
         response = {
             "message": "Data will be processed",
@@ -90,7 +106,7 @@ async def training(background_tasks: BackgroundTasks, audio: UploadFile = File(N
         return response
     
 @app.post("/inference")
-async def inference(background_tasks: BackgroundTasks, speaker_id: int = Form(...), audio: UploadFile = File(None), audio_name: str = Form(None), youtube_link: str = Form(None), pitch: str = Form(None)):
+async def inference(background_tasks: BackgroundTasks, speaker_id: int = Form(...), audio: UploadFile = File(None), audio_name: str = Form(...), youtube_link: str = Form(None), pitch: int = Form(...)):
     
     audio_name = audio_name.replace(" ", "_")
 
@@ -159,4 +175,4 @@ async def inference(background_tasks: BackgroundTasks, speaker_id: int = Form(..
         return {"message": "Error: Resulting audio file not found."}
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", reload=True, host="0.0.0.0", port=8000)
+    uvicorn.run("app:app", host="0.0.0.0", port=8000)

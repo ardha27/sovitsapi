@@ -1,47 +1,14 @@
 [
     {
         "id": 1,
-        "speaker": "John_Doe_20230517162450",
-        "status": "Splitting Audio"
+        "speaker": "Mami_20230518143156",
+        "duration": 213.18,
+        "status": "Training"
     },
     {
         "id": 2,
-        "speaker": "John_Doe_20230517162703",
-        "status": "Splitting Audio"
-    },
-    {
-        "id": 3,
-        "speaker": "John_Doe_20230517162948",
-        "status": "Splitting Audio"
-    },
-    {
-        "id": 4,
-        "speaker": "John_Doe_20230517163121",
-        "status": "Splitting Audio"
-    },
-    {
-        "id": 5,
-        "speaker": "John_Doe_20230517165646",
+        "speaker": "Mami_20230518143333",
+        "duration": 213.18,
         "status": "Training"
-    },
-    {
-        "id": 6,
-        "speaker": "Ardha_20230517170842",
-        "status": "Training"
-    },
-    {
-        "id": 7,
-        "speaker": "Ardha_20230517175654",
-        "status": "Training"
-    },
-    {
-        "id": 8,
-        "speaker": "Ardha_20230517184905",
-        "status": "Model Ready"
-    },
-    {
-        "id": 9,
-        "speaker": "Hutao_20230518020819",
-        "status": "Model Ready"
     }
 ]
