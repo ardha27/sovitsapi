@@ -10,5 +10,77 @@
         "speaker": "Mami_20230518143333",
         "duration": 213.18,
         "status": "Training"
+    },
+    {
+        "id": 3,
+        "speaker": "Aku_20230518152827",
+        "duration": 213.18,
+        "status": "Model Ready"
+    },
+    {
+        "id": 4,
+        "speaker": "Orang_1_20230520140741",
+        "duration": 213.18,
+        "status": "Splitting Audio"
+    },
+    {
+        "id": 5,
+        "speaker": "Orang_2_20230520140755",
+        "duration": 213.18,
+        "status": "Training"
+    },
+    {
+        "id": 6,
+        "speaker": "Orang_3_20230520141151",
+        "duration": 213.18,
+        "status": "Training"
+    },
+    {
+        "id": 7,
+        "speaker": "Orang_5_20230520144116",
+        "duration": 213.18,
+        "status": "Training"
+    },
+    {
+        "id": 8,
+        "speaker": "Orang_6_20230520144256",
+        "duration": 213.18,
+        "status": "Separating Vocal From Noise"
+    },
+    {
+        "id": 9,
+        "speaker": "Orang_7_20230520144305",
+        "duration": 213.18,
+        "status": "Separating Vocal From Noise"
+    },
+    {
+        "id": 10,
+        "speaker": "Orang_8_20230520144816",
+        "duration": 213.18,
+        "status": "Training"
+    },
+    {
+        "id": 11,
+        "speaker": "Orang_9_20230520145935",
+        "duration": 213.18,
+        "status": "Separating Vocal From Noise"
+    },
+    {
+        "id": 12,
+        "speaker": "Orang_10_20230520150057",
+        "duration": 213.18,
+        "status": "Separating Vocal From Noise"
+    },
+    {
+        "id": 13,
+        "speaker": "Orang_11_20230520150119",
+        "duration": 213.18,
+        "status": "Separating Vocal From Noise"
+    },
+    {
+        "id": 14,
+        "speaker": "Orang_12_20230520150243",
+        "duration": 213.18,
+        "status": "Training"
     }
 ]

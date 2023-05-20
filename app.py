@@ -18,7 +18,6 @@ from utils.inference import *
 from utils.combine import *
 
 app = FastAPI()
-request_queue = Queue()
 
 @app.get("/")
 async def root():
