@@ -1,7 +1,5 @@
-import asyncio
 from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import FileResponse
-from queue import Queue
 import soundfile as sf
 import uvicorn
 import os
@@ -80,21 +78,9 @@ async def training(background_tasks: BackgroundTasks, audio: UploadFile = File(N
         # Training
         background_tasks.add_task(update_status, speaker_id, "Training")
         background_tasks.add_task(training_sovits, speaker, epochs, batch_size)
-        background_tasks.add_task(cleanup_model, speaker)
+        background_tasks.add_task(cleanup_model, speaker_id, speaker)
 
-        folder_path = f"model/{speaker}"
-
-        # Find all .pth files in the folder
-        file_paths = glob.glob(os.path.join(folder_path, "*.pth"))
-
-        # Filter the file paths to get only .pth files
-        filtered_file_paths = [path for path in file_paths if os.path.isfile(path)]
-
-        # Check if only one .pth file exists
-        if len(filtered_file_paths) == 1:
-            background_tasks.add_task(update_status, speaker_id, "Model Ready")
-        else:
-            background_tasks.add_task(update_status, speaker_id, "Error Occurred during Training")
+        
 
         response = {
             "message": "Data will be processed",

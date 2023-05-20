@@ -1,7 +1,9 @@
 import os
 import shutil
+import glob
+from model_data import *
 
-def cleanup_model(speaker):
+def cleanup_model(speaker_id, speaker):
     try:
         # Delete multiple folders and their contents
         folder_paths = [
@@ -35,6 +37,20 @@ def cleanup_model(speaker):
             print(f"File '{file_path}' deleted successfully.")
         except FileNotFoundError:
             print(f"File '{file_path}' does not exist.")
+
+        folder_path = f"model/{speaker}"
+
+        # Find all .pth files in the folder
+        file_paths = glob.glob(os.path.join(folder_path, "*.pth"))
+
+        # Filter the file paths to get only .pth files
+        filtered_file_paths = [path for path in file_paths if os.path.isfile(path)]
+
+        # Check if only one .pth file exists
+        if len(filtered_file_paths) == 1:
+            update_status(speaker_id, "Model Ready")
+        else:
+            update_status(speaker_id, "Error Occurred during Training")
 
     except Exception as e:
         print('Error: ', e)
