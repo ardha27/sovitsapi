@@ -1,11 +1,12 @@
 from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import FileResponse
+from modal import Image, Stub, web_endpoint
 import soundfile as sf
 import uvicorn
 import os
 import datetime
 import glob
-from pydub import AudioSegment
+import pydub
 from utils.youtube import *
 from utils.demucs import *
 from utils.model_data import *
@@ -13,21 +14,37 @@ from utils.split import *
 from utils.training import *
 from utils.clean import *
 from utils.inference import *
-from utils.combine import *
 
-app = FastAPI()
+stub = Stub("Test_App")
 
-@app.get("/")
+
+image = (
+    Image.debian_slim().apt_install("curl").run_commands(
+        "apt-get update -y && apt-get install -y git",
+         "apt install ffmpeg -y",
+          "pip install -U demucs",
+           "pip install -U pip setuptools wheel",
+            "pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118",
+            "pip install -U git+https://github.com/voicepaw/so-vits-svc-fork.git",
+            "pip install -U fastapi librosa numpy pydub SoundFile python-multipart uvicorn yt_dlp"
+    )
+)   
+
+
+@stub.function()
+@web_endpoint()
 async def root():
     return {"message": "Hello World"}
 
-@app.get("/all")
+@stub.function()
+@web_endpoint()
 def get_database():
     with open("database.json", "r") as file:
         database_content = json.load(file)
     return database_content
 
-@app.get("/id/{speaker_id}")
+@stub.function()
+@web_endpoint()
 def get_speaker_by_id(speaker_id: int):
     with open("database.json", "r") as file:
         database_content = json.load(file)
@@ -39,7 +56,8 @@ def get_speaker_by_id(speaker_id: int):
     else:
         return {"message": "Speaker not found"}
     
-@app.post("/training")
+@stub.function(image=image)
+@web_endpoint(method="POST")
 async def training(background_tasks: BackgroundTasks, audio: UploadFile = File(None), speaker: str = Form(...), youtube_link: str = Form(None), epochs: int = Form(...), batch_size: int = Form(...)):
         # Create the directory for the speaker if it does not exist
         speaker = speaker.replace(" ", "_")
@@ -54,7 +72,7 @@ async def training(background_tasks: BackgroundTasks, audio: UploadFile = File(N
 
         if audio is not None:
             # Convert the audio data to WAV format
-            audio = AudioSegment.from_file(audio.file)
+            audio = pydub.AudioSegment.from_file(audio.file)
             audio.export(f"{speaker_dir}/audio.wav", format="wav")
 
         elif youtube_link is not None:
@@ -64,7 +82,7 @@ async def training(background_tasks: BackgroundTasks, audio: UploadFile = File(N
             return {"message": "Either 'audio' or 'youtube_link' must be provided."}
         
         audio_file = f"{speaker_dir}/audio.wav"
-        data, sample_rate = sf.read(audio_file)
+        data, sample_rate = soundfile.read(audio_file)
         duration = len(data) / sample_rate
 
         # Separate the audio
@@ -90,7 +108,8 @@ async def training(background_tasks: BackgroundTasks, audio: UploadFile = File(N
 
         return response
     
-@app.post("/inference")
+@stub.function(image=image)
+@web_endpoint(method="POST")
 async def inference(background_tasks: BackgroundTasks, speaker_id: int = Form(...), audio: UploadFile = File(None), audio_name: str = Form(...), youtube_link: str = Form(None), pitch: int = Form(...)):
     
     audio_name = audio_name.replace(" ", "_")
@@ -106,7 +125,7 @@ async def inference(background_tasks: BackgroundTasks, speaker_id: int = Form(..
     if audio is not None:
 
         # Convert the audio data to WAV format
-        audio = AudioSegment.from_file(audio.file)
+        audio = pydub.AudioSegment.from_file(audio.file)
         audio.export(f"{audio_dir}/audio.wav", format="wav")
 
     elif youtube_link is not None:
@@ -144,6 +163,21 @@ async def inference(background_tasks: BackgroundTasks, speaker_id: int = Form(..
 
     inference_sovits(speaker, audio_name, pth_file_path, pitch)
 
+    def combine_audio(audio_name):
+        try:
+            VOCAL = f"results/{audio_name}/vocals.wav" #@param {type:"string"}
+            INSTRUMENT = f"separated/{audio_name}/htdemucs/audio/no_vocals.wav" #@param {type:"string"}
+
+            sound1 = pydub.AudioSegment.from_file(VOCAL)
+            sound2 = pydub.AudioSegment.from_file(INSTRUMENT)
+
+            combined = sound1.overlay(sound2)
+
+            combined.export(f"results/{audio_name}/result.wav", format='wav')
+        except Exception as e:
+            print("Error: ", e)
+
+
     combine_audio(audio_name)
     
     # Path to the resulting audio file
@@ -159,5 +193,4 @@ async def inference(background_tasks: BackgroundTasks, speaker_id: int = Form(..
         # If an audio file is not found, return an error message
         return {"message": "Error: Resulting audio file not found."}
 
-if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=8000)
+
