@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import FileResponse
-from modal import Image, Stub, asgi_app
+from modal import Image, Stub, asgi_app, SharedVolume
 import soundfile
 import os
 import datetime
@@ -16,6 +16,8 @@ from utils.inference import *
 
 stub = Stub("Test_App")
 app = FastAPI()
+volume = SharedVolume().persist("doc_ocr_model_vol")
+CACHE_PATH = "/root/model_cache"
 
 image = (
     Image.debian_slim().apt_install("curl").run_commands(
@@ -28,6 +30,48 @@ image = (
         "pip install -U fastapi librosa numpy pydub SoundFile python-multipart uvicorn yt_dlp"
     )
 )   
+
+@stub.function(image=image, gpu="any", shared_volumes={CACHE_PATH: volume})
+def training_process(speaker, audio, youtube_link, epochs, batch_size):
+
+    # Create the directory for the speaker if it does not exist
+    speaker = speaker.replace(" ", "_")
+
+    current_time = datetime.datetime.now()
+    unique_filename = current_time.strftime("%Y%m%d%H%M%S")
+    speaker = speaker + "_" + unique_filename
+
+    speaker_dir = f"long_dataset/{speaker}"
+    if not os.path.exists(speaker_dir):
+        os.makedirs(speaker_dir)
+
+    if audio is not None:
+        # Convert the audio data to WAV format
+        audio = pydub.AudioSegment.from_file(audio.file)
+        audio.export(f"{speaker_dir}/audio.wav", format="wav")
+
+    elif youtube_link is not None:
+        download_from_url("training", youtube_link, speaker)
+
+    else:
+        return {"message": "Either 'audio' or 'youtube_link' must be provided."}
+    
+    audio_file = f"{speaker_dir}/audio.wav"
+    data, sample_rate = soundfile.read(audio_file)
+    duration = len(data) / sample_rate
+
+    # Separate the audio
+    speaker_id = sovits_data(speaker, duration, "Separating Vocals")
+    separate_audio("training", speaker)
+    
+    # Split the audio
+    update_status(speaker_id, "Splitting Audio")
+    split_audio(speaker)
+
+    # Training
+    update_status(speaker_id, "Training")
+    training_sovits(speaker, epochs, batch_size)
+    cleanup_model(speaker_id, speaker)
 
 @app.get("/")
 async def root():
@@ -52,53 +96,11 @@ def get_speaker_by_id(speaker_id: int):
         return {"message": "Speaker not found"}
     
 @app.post("/training")
-async def training(background_tasks: BackgroundTasks, audio: UploadFile = File(None), speaker: str = Form(...), youtube_link: str = Form(None), epochs: int = Form(...), batch_size: int = Form(...)):
-        # Create the directory for the speaker if it does not exist
-        speaker = speaker.replace(" ", "_")
+async def training(audio: UploadFile = File(None), speaker: str = Form(...), youtube_link: str = Form(None), epochs: int = Form(...), batch_size: int = Form(...)):
+    
+    call = training_process.spawn(speaker, audio, youtube_link, epochs, batch_size)
 
-        current_time = datetime.datetime.now()
-        unique_filename = current_time.strftime("%Y%m%d%H%M%S")
-        speaker = speaker + "_" + unique_filename
-
-        speaker_dir = f"long_dataset/{speaker}"
-        if not os.path.exists(speaker_dir):
-            os.makedirs(speaker_dir)
-
-        if audio is not None:
-            # Convert the audio data to WAV format
-            audio = pydub.AudioSegment.from_file(audio.file)
-            audio.export(f"{speaker_dir}/audio.wav", format="wav")
-
-        elif youtube_link is not None:
-            download_from_url("training", youtube_link, speaker)
-
-        else:
-            return {"message": "Either 'audio' or 'youtube_link' must be provided."}
-        
-        audio_file = f"{speaker_dir}/audio.wav"
-        data, sample_rate = soundfile.read(audio_file)
-        duration = len(data) / sample_rate
-
-        # Separate the audio
-        speaker_id = sovits_data(speaker, duration, "Separating Vocal From Noise")
-        background_tasks.add_task(separate_audio, "training", speaker)
-
-        # Split the audio
-        background_tasks.add_task(update_status, speaker_id, "Splitting Audio")
-        background_tasks.add_task(split_audio, speaker)
-
-        # Training
-        background_tasks.add_task(update_status, speaker_id, "Training")
-        background_tasks.add_task(training_sovits, speaker, epochs, batch_size)
-        background_tasks.add_task(cleanup_model, speaker_id, speaker)
-
-        response = {
-            "message": "Data will be processed",
-            "speaker_id": speaker_id,
-            "speaker": speaker
-        }
-
-        return response
+    return {"call_id": call.object_id}
     
 @app.post("/inference")
 async def inference(background_tasks: BackgroundTasks, speaker_id: int = Form(...), audio: UploadFile = File(None), audio_name: str = Form(...), youtube_link: str = Form(None), pitch: int = Form(...)):
