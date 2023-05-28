@@ -3,6 +3,7 @@ librosa==0.9.1
 numpy==1.23.5
 pydub
 SoundFile
+audiosegment
 python-multipart
 uvicorn==0.22.0
 yt_dlp==2023.3.4

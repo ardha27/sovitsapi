@@ -1,7 +1,6 @@
 import os
 import shutil
 import glob
-from utils.model_data import *
 
 def cleanup_model(speaker_id, speaker):
     try:
