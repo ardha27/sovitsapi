@@ -3,6 +3,8 @@ from fastapi.responses import FileResponse
 import os
 import uvicorn
 import datetime
+import threading
+from pyngrok import ngrok
 from utils.ytdownload import *
 from utils.demucs import *
 from utils.combine import *
@@ -13,6 +15,17 @@ from utils.transcribe import *
 from utils.edgetts import *
 
 app = FastAPI()
+
+def ngrok_api():
+    ngrok_tunnel = ngrok.connect(8000)
+    print("Public URL:", ngrok_tunnel.public_url)
+    ngrok_process = ngrok.get_ngrok_process()
+    try:
+        # Block until CTRL-C or some other terminating event
+        ngrok_process.proc.wait()
+    except KeyboardInterrupt:
+        print(" Shutting down server.")
+        ngrok.kill()
 
 @app.get("/")
 async def root():
@@ -71,4 +84,6 @@ async def inference(background_tasks: BackgroundTasks, speaker: str = Form(...),
         return {"message": "Error: Resulting audio file not found."}
     
 if __name__ == "__main__":
+    public_url = threading.Thread(target=ngrok_api)
+    public_url.start()
     uvicorn.run(app, host="0.0.0.0", port=8000)
